@@ -1,0 +1,10 @@
+node_modules/
+.next/
+out/
+pages-out/
+.sites-runtime/
+.env*
+!.env.example
+*.tsbuildinfo
+*.zip
+test-results/

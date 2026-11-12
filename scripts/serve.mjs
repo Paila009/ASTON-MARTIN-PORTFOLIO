@@ -1,0 +1,11 @@
+import http from 'node:http';
+import fs from 'node:fs';
+import path from 'node:path';
+const root=path.resolve('out');
+if(!fs.existsSync(path.join(root,'index.html')))throw new Error('Build first with pnpm build.');
+const types={'.html':'text/html; charset=utf-8','.js':'application/javascript','.css':'text/css','.txt':'text/x-component','.json':'application/json','.jpg':'image/jpeg','.png':'image/png','.svg':'image/svg+xml','.ttf':'font/ttf','.woff2':'font/woff2'};
+const server=http.createServer((req,res)=>{let name;try{name=decodeURIComponent(new URL(req.url,'http://localhost').pathname)}catch{res.writeHead(400).end();return}let target=path.resolve(root,'.'+name);if(target!==root&&!target.startsWith(root+path.sep)){res.writeHead(403).end();return}if(fs.existsSync(target)&&fs.statSync(target).isDirectory())target=path.join(target,'index.html');if(!fs.existsSync(target)){res.statusCode=404;target=path.join(root,'404.html')}res.setHeader('Content-Type',types[path.extname(target)]||'application/octet-stream');fs.createReadStream(target).pipe(res)});
+let port=Number(process.env.PORT)||3001;
+server.on('error',e=>{if(e.code==='EADDRINUSE'){console.log('Port '+port+' is occupied; trying '+(++port));server.listen(port,'127.0.0.1')}else throw e});
+server.on('listening',()=>console.log('Local: http://127.0.0.1:'+port));
+server.listen(port,'127.0.0.1');
