@@ -1,14 +1,14 @@
 'use client';
 
-import { Component, type ComponentRef, type ReactNode, Suspense, memo, useEffect, useMemo, useRef, useState } from 'react';
+import { Component, type ComponentRef, type ReactNode, Suspense, memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { ContactShadows, Environment, Html, Lightformer, Line, OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
 import { RectAreaLightUniformsLib } from 'three/addons/lights/RectAreaLightUniformsLib.js';
-import type { GarageCommand, GarageView, HotspotId } from './Garage';
+import type { GarageCommand, GarageInspection, GarageLighting, GarageView, HotspotId } from './Garage';
 
 type V3 = [number, number, number];
-type SceneProps = { view: GarageView; selectedHotspot: HotspotId | null; autoRotate: boolean; airflow: boolean; visible: boolean; reducedMotion: boolean; command: GarageCommand; resetKey: number; onSelect: (id: HotspotId) => void; onInteract: () => void; onReady: () => void; onError: () => void; scrollProgress?: number };
+type SceneProps = { view: GarageView; selectedHotspot: HotspotId | null; autoRotate: boolean; airflow: boolean; visible: boolean; reducedMotion: boolean; command: GarageCommand; resetKey: number; onSelect: (id: HotspotId) => void; onInteract: () => void; onReady: () => void; onError: () => void; scrollProgress?: number; manualControl?: boolean; inspection?: GarageInspection; lighting?: GarageLighting };
 type Section = { x: number; y: number; w: number; h: number };
 const green = '#00543f';
 const carbon = '#111816';
@@ -130,7 +130,7 @@ function Body() {
     shape.moveTo(-2.55, -.6); shape.lineTo(-2.2, -1.4); shape.bezierCurveTo(-1.4, -1.52, 1.5, -1.5, 2.6, -1.38); shape.lineTo(3.98, -1.15); shape.lineTo(4.35, -.8); shape.lineTo(4.35, .8); shape.lineTo(3.98, 1.15); shape.lineTo(2.6, 1.38); shape.bezierCurveTo(1.5, 1.5, -1.4, 1.52, -2.2, 1.4); shape.lineTo(-2.55, .6); shape.closePath(); return shape;
   }, []);
 
-  return <group>
+  return <group name="garage-study-car">
     <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, .31, 0]} castShadow receiveShadow><extrudeGeometry args={[floorShape, { depth: .085, bevelEnabled: true, bevelSize: .025, bevelThickness: .02, bevelSegments: 2 }]}/><meshStandardMaterial {...carbonFinish}/></mesh>
     <Loft sections={[{ x: -4.96, y: .77, w: .11, h: .07 }, { x: -4.5, y: .84, w: .18, h: .12 }, { x: -3.8, y: .98, w: .24, h: .19 }, { x: -3.1, y: 1.11, w: .32, h: .24 }, { x: -2.3, y: 1.16, w: .43, h: .32 }, { x: -1.5, y: 1.1, w: .59, h: .36 }, { x: -.6, y: 1.02, w: .64, h: .38 }, { x: .6, y: .99, w: .65, h: .39 }, { x: 1.5, y: 1.02, w: .59, h: .38 }, { x: 2.7, y: .92, w: .42, h: .27 }, { x: 4.05, y: .82, w: .14, h: .16 }]}/>
     <Loft sections={[{ x: .62, y: 1.3, w: .44, h: .4 }, { x: 1.02, y: 1.55, w: .4, h: .57 }, { x: 1.4, y: 1.5, w: .37, h: .53 }, { x: 2.2, y: 1.23, w: .3, h: .4 }, { x: 3.3, y: 1, w: .18, h: .25 }, { x: 3.9, y: .93, w: .06, h: .13 }]}/>
@@ -290,6 +290,7 @@ function CameraRig(props: SceneProps) {
 function ScrollCameraRig({ progress, reducedMotion, visible, compact }: { progress: number; reducedMotion: boolean; visible: boolean; compact: boolean }) {
   const { camera, gl } = useThree();
   const easedProgress = useRef(progress);
+  const orientation = useMemo(() => ({ matrix: new THREE.Matrix4(), quaternion: new THREE.Quaternion(), target: new THREE.Vector3() }), []);
   const path = useMemo(() => new THREE.CatmullRomCurve3([
     new THREE.Vector3(-12.9, 2.7, 4.6), new THREE.Vector3(-9.2, 4.1, 10.2),
     new THREE.Vector3(-1.8, 6.2, 14.6), new THREE.Vector3(6.8, 9.4, 10), new THREE.Vector3(8.3, 14.3, 1.4),
@@ -300,11 +301,58 @@ function ScrollCameraRig({ progress, reducedMotion, visible, compact }: { progre
     easedProgress.current += (requested - easedProgress.current) * (reducedMotion ? 1 : 1 - Math.exp(-delta * 10));
     const position = path.getPoint(THREE.MathUtils.clamp(easedProgress.current, 0, 1));
     if (compact) position.multiplyScalar(1.25);
-    camera.position.copy(position);
-    camera.lookAt(0, .8 + easedProgress.current * .18, 0);
+    const blend = reducedMotion ? 1 : 1 - Math.exp(-delta * 5.5);
+    camera.position.lerp(position, blend);
+    orientation.target.set(0, .8 + easedProgress.current * .18, 0);
+    orientation.matrix.lookAt(camera.position, orientation.target, camera.up);
+    orientation.quaternion.setFromRotationMatrix(orientation.matrix);
+    camera.quaternion.slerp(orientation.quaternion, blend);
     if (camera instanceof THREE.PerspectiveCamera && camera.fov !== (compact ? 48 : 39)) { camera.fov = compact ? 48 : 39; camera.updateProjectionMatrix(); }
     gl.domElement.dataset.scrollCamera = `${camera.position.x.toFixed(2)},${camera.position.y.toFixed(2)},${camera.position.z.toFixed(2)}`;
   });
+  return null;
+}
+
+const lightPresets = {
+  green: { key: '#f5f4d1', fill: '#c7deae', rim: '#00c48a', ambient: '#e7edca', ground: '#17281c', floor: '#17251b', backdrop: '#17251a', fog: '#273021', keyPower: 2.8 },
+  lime: { key: '#f4ffb8', fill: '#d7f000', rim: '#b3ff15', ambient: '#e8ffc2', ground: '#28320d', floor: '#202817', backdrop: '#253211', fog: '#29311b', keyPower: 3.1 },
+  white: { key: '#ffffff', fill: '#bcd8ff', rim: '#e9f2ff', ambient: '#e5efff', ground: '#18242c', floor: '#202a30', backdrop: '#1d2832', fog: '#25343c', keyPower: 3.5 },
+};
+
+function StudySurface({ inspection }: { inspection: GarageInspection }) {
+  const { scene, gl, invalidate } = useThree();
+  useLayoutEffect(() => {
+    const model = scene.getObjectByName('garage-study-car');
+    let count = 0;
+    model?.traverse((object) => {
+      if (!(object instanceof THREE.Mesh)) return;
+      const materials = Array.isArray(object.material) ? object.material : [object.material];
+      materials.forEach((material) => {
+        if (!(material instanceof THREE.MeshStandardMaterial || material instanceof THREE.MeshBasicMaterial)) return;
+        if (!material.userData.garageOriginal) material.userData.garageOriginal = { color: material.color.clone(), ...(material instanceof THREE.MeshStandardMaterial ? { metalness: material.metalness, roughness: material.roughness, emissive: material.emissive.clone(), emissiveIntensity: material.emissiveIntensity } : {}) };
+        const original = material.userData.garageOriginal;
+        material.wireframe = inspection === 'wireframe';
+        material.color.copy(inspection === 'wireframe' ? new THREE.Color('#a6d99d') : original.color);
+        if (material instanceof THREE.MeshStandardMaterial) {
+          material.metalness = inspection === 'wireframe' ? 0 : original.metalness;
+          material.roughness = inspection === 'wireframe' ? .8 : original.roughness;
+          material.emissive.copy(inspection === 'wireframe' ? new THREE.Color('#6b9a59') : original.emissive);
+          material.emissiveIntensity = inspection === 'wireframe' ? .22 : original.emissiveIntensity;
+        }
+        material.needsUpdate = true; count++;
+      });
+    });
+    gl.domElement.dataset.inspection = inspection;
+    gl.domElement.dataset.studyMaterials = String(count);
+    invalidate();
+  }, [inspection, scene, gl, invalidate]);
+  return null;
+}
+
+function SceneTelemetry({ lighting, manualControl }: { lighting: GarageLighting; manualControl: boolean }) {
+  const { gl, camera } = useThree();
+  useEffect(() => { gl.domElement.dataset.lighting = lighting; gl.domElement.dataset.control = manualControl ? 'manual' : 'scroll'; }, [gl, lighting, manualControl]);
+  useFrame(() => { gl.domElement.dataset.camera = `${camera.position.x.toFixed(3)},${camera.position.y.toFixed(3)},${camera.position.z.toFixed(3)}`; });
   return null;
 }
 
@@ -323,7 +371,7 @@ function Airflow({ reducedMotion, visible }: { reducedMotion: boolean; visible: 
   return <group>{curves.map((curve, i) => <group key={i}><Line points={curve.getPoints(90)} color={i > 2 ? '#98b9a7' : lime} lineWidth={1.4} transparent opacity={.44} dashed dashSize={.12} gapSize={.1}/><mesh ref={(node) => { particleRefs.current[i] = node; }} position={curve.getPointAt(i * .13)}><sphereGeometry args={[.045, 8, 8]}/><meshBasicMaterial color={i > 2 ? '#b1d3bd' : lime} transparent opacity={.85}/></mesh></group>)}</group>;
 }
 
-function Studio({ economy }: { economy: boolean }) {
+function Studio({ economy, lighting }: { economy: boolean; lighting: GarageLighting }) {
   const tickGeometry = useMemo(() => {
     const points: number[] = [];
     for (let i = 0; i < 72; i++) { const angle = i / 72 * Math.PI * 2, inner = i % 6 === 0 ? 6.2 : 6.33; points.push(Math.cos(angle) * inner, .013, Math.sin(angle) * inner, Math.cos(angle) * 6.45, .013, Math.sin(angle) * 6.45); }
@@ -331,8 +379,8 @@ function Studio({ economy }: { economy: boolean }) {
   }, []);
   useEffect(() => () => tickGeometry.dispose(), [tickGeometry]);
   return <group>
-    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -.02, 0]} receiveShadow><planeGeometry args={[200, 200]}/><meshStandardMaterial color="#111d15" metalness={.18} roughness={.73}/></mesh>
-    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -.002, 0]} receiveShadow><circleGeometry args={[6.1, 100]}/><meshStandardMaterial color="#17251b" roughness={.63} metalness={.25}/></mesh>
+    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -.02, 0]} receiveShadow><planeGeometry args={[200, 200]}/><meshStandardMaterial color={lightPresets[lighting].ground} metalness={.18} roughness={.73}/></mesh>
+    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -.002, 0]} receiveShadow><circleGeometry args={[6.1, 100]}/><meshStandardMaterial color={lightPresets[lighting].floor} roughness={.63} metalness={.25}/></mesh>
     {[5.65, 6.05, 6.57].map((r) => <mesh key={r} rotation={[-Math.PI / 2, 0, 0]} position={[0, .009, 0]}><ringGeometry args={[r, r + .009, 128]}/><meshBasicMaterial color="#78805a" transparent opacity={r === 6.05 ? .34 : .13} depthWrite={false}/></mesh>)}
     <lineSegments geometry={tickGeometry}><lineBasicMaterial color="#9ba978" transparent opacity={.35}/></lineSegments>
     <ContactShadows position={[0, .025, 0]} opacity={.56} scale={18} blur={2.4} far={4.5} resolution={economy ? 256 : 512} frames={1} color="#000a03"/>
@@ -363,19 +411,22 @@ export default function GarageScene(props: SceneProps) {
   }, []);
   useEffect(() => { const query = window.matchMedia('(max-width: 760px)'); const update = () => setCompact(query.matches); query.addEventListener('change', update); return () => query.removeEventListener('change', update); }, []);
   const economy = compact || limitedHardware;
+  const lighting = props.lighting || 'green';
+  const light = lightPresets[lighting];
+  const manual = props.scrollProgress === undefined || props.manualControl === true;
   return <SceneBoundary onError={props.onError}><Canvas camera={{ position: presets['three-quarter'].position, fov: 39, near: .1, far: 150 }} dpr={[1, economy ? 1.25 : 1.65]} shadows frameloop={props.visible ? 'always' : 'never'} gl={{ antialias: true, alpha: true, powerPreference: economy ? 'default' : 'high-performance' }} onCreated={({ gl }) => { gl.setClearColor('#000000', 0); gl.toneMapping = THREE.ACESFilmicToneMapping; gl.toneMappingExposure = 1.05; }} fallback={<div className="garage-fallback"><h3>Explore the engineering.</h3><p>3D is unavailable in this browser. The nine engineering systems below remain available.</p></div>}>
-    <fog attach="fog" args={['#273021', 24, 57]}/>
-    <ambientLight intensity={.18}/><hemisphereLight args={['#e7edca', '#17281c', .75]}/>
-    <directionalLight position={[-5, 9, 5]} intensity={2.8} color="#f5f4d1" castShadow shadow-mapSize={economy ? [1024, 1024] : [2048, 2048]} shadow-camera-left={-9} shadow-camera-right={9} shadow-camera-top={8} shadow-camera-bottom={-8} shadow-normalBias={.025} shadow-bias={-.0002}/>
-    <directionalLight position={[5, 5, -6]} intensity={2.2} color="#c7deae"/>
-    <rectAreaLight width={11} height={5} intensity={3.2} color="#fcffe3" position={[0, 7, 0]} rotation={[-Math.PI / 2, 0, 0]}/>
-    <pointLight position={[-6, 2, -4]} intensity={8} color="#a7bb7b" distance={16}/>
-    <Environment resolution={economy ? 64 : 128} frames={1}>
-      <mesh scale={45}><sphereGeometry args={[1, 24, 16]}/><meshBasicMaterial color="#17251a" side={THREE.BackSide}/></mesh>
-      <Lightformer form="rect" color="#f3f2d9" intensity={2.5} position={[-1, 7, 0]} rotation={[Math.PI / 2, 0, 0]} scale={[11, 3, 1]}/>
-      <Lightformer form="rect" color="#d7e7ce" intensity={1.7} position={[0, 4, -7]} scale={[13, 2, 1]}/>
-      <Lightformer form="rect" color="#f1f6dc" intensity={1.6} position={[-8, 3, 3]} rotation={[0, Math.PI / 2, 0]} scale={[7, 2, 1]}/>
+    <fog attach="fog" args={[light.fog, 24, 57]}/>
+    <ambientLight intensity={.18}/><hemisphereLight args={[light.ambient, light.ground, .75]}/>
+    <directionalLight position={[-5, 9, 5]} intensity={light.keyPower} color={light.key} castShadow shadow-mapSize={economy ? [1024, 1024] : [2048, 2048]} shadow-camera-left={-9} shadow-camera-right={9} shadow-camera-top={8} shadow-camera-bottom={-8} shadow-normalBias={.025} shadow-bias={-.0002}/>
+    <directionalLight position={[5, 5, -6]} intensity={2.2} color={light.fill}/>
+    <rectAreaLight width={11} height={5} intensity={3.2} color={light.key} position={[0, 7, 0]} rotation={[-Math.PI / 2, 0, 0]}/>
+    <pointLight position={[-6, 2, -4]} intensity={12} color={light.rim} distance={16}/>
+    <Environment key={lighting} resolution={economy ? 64 : 128} frames={1}>
+      <mesh scale={45}><sphereGeometry args={[1, 24, 16]}/><meshBasicMaterial color={light.backdrop} side={THREE.BackSide}/></mesh>
+      <Lightformer form="rect" color={light.key} intensity={2.5} position={[-1, 7, 0]} rotation={[Math.PI / 2, 0, 0]} scale={[11, 3, 1]}/>
+      <Lightformer form="rect" color={light.fill} intensity={1.7} position={[0, 4, -7]} scale={[13, 2, 1]}/>
+      <Lightformer form="rect" color={light.rim} intensity={1.6} position={[-8, 3, 3]} rotation={[0, Math.PI / 2, 0]} scale={[7, 2, 1]}/>
     </Environment>
-    <Suspense fallback={null}><StableStudio economy={economy}/><StableBody/>{props.scrollProgress === undefined && <Hotspots selected={props.selectedHotspot} onSelect={props.onSelect}/>} {props.selectedHotspot && props.scrollProgress === undefined && <SelectionBrackets selected={props.selectedHotspot}/>} {props.airflow && <Airflow visible={props.visible} reducedMotion={props.reducedMotion}/>} {props.scrollProgress !== undefined ? <ScrollCameraRig progress={props.scrollProgress} reducedMotion={props.reducedMotion} visible={props.visible} compact={compact}/> : <CameraRig {...props}/>}<Ready onReady={props.onReady} onError={props.onError}/></Suspense>
+    <Suspense fallback={null}><StableStudio economy={economy} lighting={lighting}/><StableBody/>{props.scrollProgress === undefined && <Hotspots selected={props.selectedHotspot} onSelect={props.onSelect}/>} {props.selectedHotspot && props.scrollProgress === undefined && <SelectionBrackets selected={props.selectedHotspot}/>} {props.airflow && <Airflow visible={props.visible} reducedMotion={props.reducedMotion}/>} {manual ? <CameraRig {...props}/> : <ScrollCameraRig progress={props.scrollProgress || 0} reducedMotion={props.reducedMotion} visible={props.visible} compact={compact}/>}<StudySurface inspection={props.inspection || 'solid'}/><SceneTelemetry lighting={lighting} manualControl={manual}/><Ready onReady={props.onReady} onError={props.onError}/></Suspense>
   </Canvas></SceneBoundary>;
 }

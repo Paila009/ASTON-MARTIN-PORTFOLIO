@@ -75,6 +75,8 @@ To test a prefixed build outside Actions, set `NEXT_PUBLIC_BASE_PATH=/ASTON-MART
 
 The main route families are `/team`, `/drivers`, `/cars`, `/garage`, `/race-centre`, `/races`, `/seasons`, `/heritage`, `/engineering`, `/stories`, `/academy`, `/partners`, `/media`, `/fan-experience` and `/sources`. Individual records use their stable slugs; race detail paths include the season year. Keep route generation and internal links aligned when adding a record.
 
+The interactive upgrade adds a manual takeover for the home 3D chapter, garage wireframe and studio-light controls, a swipeable story deck with local bookmarks, a two-chassis comparison, selectable hero photography and a Lights Out reaction practice game. Use the floating **Explore the experience** button or Ctrl/Cmd+K to reach them. The game and reading list store data only on the current browser; neither requires an account nor sends results to a service.
+
 ## Update the content
 
 1. Check the relevant official team, Formula 1, FIA or Honda source. Add its URL and a specific verification date to `sources` in `src/lib/data.ts`. Source IDs are stable keys; titles should identify the source's scope and publication date when known.

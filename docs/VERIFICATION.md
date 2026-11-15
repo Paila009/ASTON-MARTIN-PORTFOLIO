@@ -52,3 +52,20 @@ The focused motion follow-up passed **12/12** checks, including mobile real-WebG
 ## Limits
 
 No physical phone/tablet testing, multi-touch pinch measurement, screen-reader audit, automated WCAG certification, production network performance test or external-link availability crawl was performed. Geometry and camera animation were visually reviewed in screenshots; browser tests confirm control state and working panels rather than proving chassis accuracy. The car is explicitly illustrative. Full-field qualifying/results and the remaining historical detail gaps are listed in `ARCHIVE-COVERAGE.md`.
+
+## Interactive upgrade — 15 November 2026
+
+The new production build and TypeScript check passed. Browser verification used the in-app browser against the built local export, including a 390 × 844 viewport:
+
+- The hero's Next perspective changed the visible official photograph and selected state.
+- The experience console opened from its button and Ctrl+K, navigated to stories/comparison/game, and closed with Escape.
+- Story Next and two consecutive keyboard arrows changed the active record; Save and Saved-only reduced the deck to the saved record. The saved count persisted after reload.
+- The chassis comparator opened from the console, changed challenger selections, rendered the matching drivers/specifications/season totals and updated its shareable URL. It had no mobile horizontal overflow.
+- The reaction game detected an early press as a jump start, completed separate pointer and Space-key attempts, persisted the measured personal best after reload, and returned to idle when Abort was selected. The practice times are local test outputs, not driver benchmarks.
+- Garage wireframe reached 228 real model materials. White lighting reached the renderer. Rear-view selection updated its pressed state.
+- Home Take control changed the same canvas to manual mode. Wireframe, lime lighting, airflow and side-view/rotation controls changed renderer state and camera position. Follow scroll returned to the scroll camera.
+- Mobile story controls, the comparison, console and manual 3D dock were reviewed. The console scrolls internally on small screens. No horizontal page overflow was observed at 390 px.
+- The manual reduced-motion setting collapsed the scrolling chapter; manual inspection remained usable. The setting and viewport were restored after testing.
+- The browser's captured error log was empty at the end of these checks.
+
+The story deck and mobile 3D control dock were visually inspected in screenshots. Native touchscreen swipe/pinch, forced storage denial and a fresh forced WebGL failure were not exercised in this revision; accessible HTML controls and the existing fallback remain in the implementation. There is no new claim of a full WCAG audit or production performance score.

@@ -24,3 +24,12 @@ Controls use visible focus, comfortable touch targets and HTML outside the canva
 The home page now includes a genuine scroll-driven 3D chapter. A sticky studio follows native document scroll while the camera travels along a curved path, from a low front view to an elevated rear view. Three large narratives slide laterally across the scene. The chapter lazily loads near the viewport and stops rendering when hidden or offscreen. It reuses the illustrative garage model; the official AMR26 poster is retained as the fallback.
 
 `ScrollMotion.tsx` adds opposing hero typography, a layered photographic reveal, a lime racing ticker, driver-panel perspective, staggered content entrances, architectural parallax and a page progress line. The engine uses passive scroll events and requestAnimationFrame without taking control of page scrolling. Its listeners and styles are removed when leaving the home page. The hero's Pause effects control, OS reduced motion and the footer preference all disable the effects; the 3D chapter becomes compact, static content.
+
+## Hands-on experiences
+
+- The homepage car chapter offers a Take control mode, using the same canvas for manual orbit, camera presets, lighting changes, wireframe inspection and illustrative airflow. Follow scroll returns to the cinematic camera path.
+- Three official launch-photography perspectives are selectable in the hero. They are photographs, separate from the procedural model.
+- The editorial room is a keyboard/swipe-controlled story deck with categories, thumbnails, random discovery and a browser-local saved list. It never presents a static image as a playing film.
+- The Lights Out challenge is a local practice game. Timing is measured from the displayed lights-out frame; only actual completed attempts populate the personal best and history. It claims no comparison with real drivers.
+- The car comparator joins existing chassis, driver and season records. It distinguishes sourced published details from the labelled regulatory limits in each full record.
+- The experience console provides direct links to each interaction, random story discovery, and a Ctrl/Cmd+K shortcut. It uses the browser's native modal behaviour for focus and Escape handling.
